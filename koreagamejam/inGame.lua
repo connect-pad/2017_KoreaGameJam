@@ -6,6 +6,30 @@ local ws
 -- ws:send( str )
 -- ws:close()
 
+local scene = composer.newScene()
+
+local _W, _H = display.contentWidth, display.contentHeight
+local content = {}
+local character_image, character_stat, character_move = {}, {}, {}
+local showUI, makeCharacter
+
+local playerCollisionFilter = { categoryBits = 1, maskBits = 28 }
+local playerBulletCollisionFilter = { categoryBits = 2, maskBits = 28 }
+local enemyCollisionFilter = { categoryBits = 4, maskBits = 19 }
+local enemyBulletCollisionFilter = { categoryBits = 8, maskBits = 19 }
+local wallCollisionFilter = { categoryBits = 16, maskBits = 15 }
+
+local maxHP = 100
+
+local function CC(hex)
+	local r = tonumber( hex:sub(1,2), 16) / 255
+	local g = tonumber( hex:sub(3,4), 16) / 255
+	local b = tonumber( hex:sub(5,6), 16) / 255
+	local a = 255/255
+	if #hex == 8 then a = tonumber( hex:sub(7,8), 16) / 255 end
+	return r,g,b,a
+end
+
 local function webSocketsEvent_handler( event )
 	-- print( "webSocketsEvent_handler", event.type )
 	local evt_type = event.type
@@ -32,35 +56,6 @@ local function webSocketsEvent_handler( event )
 		-- Utils.print( event )
 
 	end
-end
-
-
-ws = WebSockets{
-	uri='ws://192.168.21.190:1337'
-}
-ws:addEventListener( ws.EVENT, webSocketsEvent_handler )
-local scene = composer.newScene()
-
-local _W, _H = display.contentWidth, display.contentHeight
-local content = {}
-local character_image, character_stat, character_move = {}, {}, {}
-local showUI, makeCharacter
-
-local playerCollisionFilter = { categoryBits = 1, maskBits = 28 }
-local playerBulletCollisionFilter = { categoryBits = 2, maskBits = 28 }
-local enemyCollisionFilter = { categoryBits = 4, maskBits = 19 }
-local enemyBulletCollisionFilter = { categoryBits = 8, maskBits = 19 }
-local wallCollisionFilter = { categoryBits = 16, maskBits = 15 }
-
-local maxHP = 100
-
-local function CC(hex)
-	local r = tonumber( hex:sub(1,2), 16) / 255
-	local g = tonumber( hex:sub(3,4), 16) / 255
-	local b = tonumber( hex:sub(5,6), 16) / 255
-	local a = 255/255
-	if #hex == 8 then a = tonumber( hex:sub(7,8), 16) / 255 end
-	return r,g,b,a
 end
 
 function showUI()
@@ -239,9 +234,15 @@ end
 
 function makeMonster()
 end
+
 function scene:create(event)
 
   local sceneGroup = self.view
+
+	ws = WebSockets{
+		uri='ws://192.168.21.190:1337'
+	}
+	ws:addEventListener( ws.EVENT, webSocketsEvent_handler )
 
   physcis.start()
   physics.setGravity( 0, 0 )
