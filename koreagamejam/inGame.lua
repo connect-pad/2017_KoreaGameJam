@@ -26,7 +26,7 @@ local function CC(hex)
 end
 
 function showUI()
-  content[1] = display.newRect( 0, 0, _W, _H*0.7 )
+  content[1] = display.newRect( 0, 0, _W, _H*0.8 )
   content[1].anchorX, content[1].anchorY = 0, 0
   content[1]:setFillColor( CC("555555") )
 end
@@ -199,20 +199,8 @@ function makeCharacter(id)
   timer.performWithDelay( character_stat["id"]["ats"] , makeBullet, -1 )
 end
 
-function endedGame(event)
-  local options =
-  {
-    effect = "fade",
-    time = 500,
-    params =
-    {
-      someKey = "someValue",
-      someOtherKey = 10
-    }
-  }
-  composer.gotoScene( sceneName, options )
+function makeMonster()
 end
-
 function scene:create(event)
 
   local sceneGroup = self.view
