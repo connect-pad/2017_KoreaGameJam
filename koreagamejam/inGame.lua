@@ -1,6 +1,7 @@
 local composer = require "composer"
 local physcis = require "physics"
 local WebSockets = require 'dmc_corona.dmc_websockets'
+local json = require "json"
 local ws
 
 -- ws:send( str )
@@ -30,7 +31,7 @@ local function CC(hex)
 	return r,g,b,a
 end
 
-local function webSocketsEvent_handler( event )
+function webSocketsEvent_handler( event )
 	-- print( "webSocketsEvent_handler", event.type )
 	local evt_type = event.type
 
@@ -43,6 +44,11 @@ local function webSocketsEvent_handler( event )
 	elseif evt_type == ws.ONMESSAGE then
 		local msg = event.message
 
+		local decoded, pos, msg = json.decode( msg )
+
+		if not decoded then
+		else
+		end
 
 		print( "Received event: ONMESSAGE" )
 		print( "echoed message: '" .. tostring( msg.data ) .. "'\n\n" )
@@ -58,13 +64,18 @@ local function webSocketsEvent_handler( event )
 	end
 end
 
+function sendData(str)
+	local encoded = json.encode( str )
+	print( "encoded : " .. encoded )
+
+	ws:send(encoded)
+end
+
 function showUI()
   content[1] = display.newRect( 0, 0, _W, _H*0.8 )
   content[1].anchorX, content[1].anchorY = 0, 0
   content[1]:setFillColor( CC("555555") )
 end
-
-
 
 function makeCharacter(id)
   local ud, lr = 0, 0
@@ -233,6 +244,11 @@ function makeCharacter(id)
 end
 
 function makeMonster()
+	function moveMonster()
+
+	end
+	local monster = display.newCircle( _W*1.2, _H*0.4, 25 )
+	monster:setFillColor(CC("888888"))
 end
 
 function scene:create(event)
