@@ -3,6 +3,7 @@ local physcis = require "physics"
 local WebSockets = require 'dmc_corona.dmc_websockets'
 local json = require "json"
 local ws
+local json = require( "json" )
 
 -- ws:send( str )
 -- ws:close()
@@ -37,21 +38,26 @@ function webSocketsEvent_handler( event )
 
 	if evt_type == ws.ONOPEN then
 		print( 'Received event: ONOPEN' )
-
-    ws:send("hello")
-
-
 	elseif evt_type == ws.ONMESSAGE then
 		local msg = event.message
 
-		local decoded, pos, msg = json.decode( msg )
-
-		if not decoded then
-		else
-		end
-
 		print( "Received event: ONMESSAGE" )
-		print( "echoed message: '" .. tostring( msg.data ) .. "'\n\n" )
+    print( "echoed message: '" .. tostring( msg.data ) .. "'\n\n" )
+
+    resultTable = json.decode(msg.data)
+
+    if resultTable.event == "arrowKeyDown" then
+      eventArrowKeyDown(resultTable)
+    elseif resultTable.event == "arrowKeyUp" then
+      eventArrowKeyUp(resultTable)
+    elseif resultTable.event == "rotationKeyDown" then
+      eventRotationKeyDown(resultTable)
+    elseif resultTable.event == "rotationKeyUp" then
+      eventRotationKeyUp(resultTable)
+    elseif resultTable.event == "gameStart" then
+      eventGameStart(resultTable)
+    end
+
 
 	elseif evt_type == ws.ONCLOSE then
 		print( "Received event: ONCLOSE" )
@@ -69,6 +75,76 @@ function sendData(str)
 	print( "encoded : " .. encoded )
 
 	ws:send(encoded)
+
+--[[
+  data 형태
+  {
+    "uid":"mnLE33vu9FUsp8DUAAAD",
+    "arrow": "W"
+  }
+]]
+function eventArrowKeyDown(data)
+  print("eventArrowKeyDown")
+end
+
+--[[
+  data 형태
+  {
+    "uid":"mnLE33vu9FUsp8DUAAAD",
+    "arrow": "W"
+  }
+]]
+function eventArrowKeyUp(data)
+  print("eventArrowKeyUp")
+end
+
+--[[
+  data 형태
+  {
+    "uid":"mnLE33vu9FUsp8DUAAAD",
+    "angle": "210"
+  }
+]]
+function eventRotationKeyDown(data)
+  print("eventRotationKeyDown")
+end
+
+--[[
+  data 형태
+  {
+    "uid":"mnLE33vu9FUsp8DUAAAD",
+    "angle": "210"
+  }
+]]
+function eventRotationKeyUp(data)
+  print("eventRotationKeyUp")
+end
+
+--[[
+  data 형태
+  {
+    "userlist":[
+      {
+        "uid":""
+        ...(미정)
+      }
+    ]
+  }
+]]
+function eventGameStart(data)
+  print("eventGameStart")
+end
+
+function sendSoundEffect(uid, file)
+  print("sendSoundEffect")
+end
+
+function sendVibration(uid, array)
+  print("sendVibration")
+end
+
+function sendGameEnd()
+  print("sendGameEnd")
 end
 
 function showUI()
