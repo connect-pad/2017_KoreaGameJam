@@ -1,3 +1,6 @@
+-- -----------------------------------------------------------------------------------------------------------------------------------
+-- modules
+-- -----------------------------------------------------------------------------------------------------------------------------------
 local composer = require "composer"
 local physcis = require "physics"
 local WebSockets = require 'dmc_corona.dmc_websockets'
@@ -5,24 +8,16 @@ local json = require "json"
 local ws
 local json = require( "json" )
 
--- ws:send( str )
--- ws:close()
-
 local scene = composer.newScene()
 
 local _W, _H = display.contentWidth, display.contentHeight
 local content = {}
-local character_image, character_stat, character_move = {}, {}, {}
+local character_image, character_stat, character_move, character_id = {}, {}, {}, {}
 local showUI, makeCharacter
-
-local playerCollisionFilter = { categoryBits = 1, maskBits = 28 }
-local playerBulletCollisionFilter = { categoryBits = 2, maskBits = 28 }
-local enemyCollisionFilter = { categoryBits = 4, maskBits = 19 }
-local enemyBulletCollisionFilter = { categoryBits = 8, maskBits = 19 }
-local wallCollisionFilter = { categoryBits = 16, maskBits = 15 }
-
+local isGameStart = false
 local maxHP = 100
 
+-- convert color:hex to rgb
 local function CC(hex)
 	local r = tonumber( hex:sub(1,2), 16) / 255
 	local g = tonumber( hex:sub(3,4), 16) / 255
@@ -32,12 +27,35 @@ local function CC(hex)
 	return r,g,b,a
 end
 
+
+
+-- -----------------------------------------------------------------------------------------------------------------------------------
+-- collision filter
+-- -----------------------------------------------------------------------------------------------------------------------------------
+
+local playerCollisionFilter = { categoryBits = 1, maskBits = 28 }
+local playerBulletCollisionFilter = { categoryBits = 2, maskBits = 28 }
+local enemyCollisionFilter = { categoryBits = 4, maskBits = 19 }
+local enemyBulletCollisionFilter = { categoryBits = 8, maskBits = 19 }
+local wallCollisionFilter = { categoryBits = 16, maskBits = 15 }
+
+
+
+-- -----------------------------------------------------------------------------------------------------------------------------------
+-- socket
+-- -----------------------------------------------------------------------------------------------------------------------------------
+
+-- ws:send( str )
+-- ws:close()
+
+-- web socket event handler
 function webSocketsEvent_handler( event )
 	-- print( "webSocketsEvent_handler", event.type )
 	local evt_type = event.type
 
 	if evt_type == ws.ONOPEN then
 		print( 'Received event: ONOPEN' )
+
 	elseif evt_type == ws.ONMESSAGE then
 		local msg = event.message
 
@@ -78,18 +96,44 @@ end
   }
 ]]
 function eventArrowKeyDown(data)
-  print("eventArrowKeyDown")
+	local id = data.uid
+	local ar = data.arrow
+
+	if ar == "N" then
+		character_move["id"].UD = -1
+		character_move["id"].LR = 0
+	elseif ar == "W" then
+		character_move["id"].UD = 0
+		character_move["id"].LR = -1
+	elseif ar == "E" then
+		character_move["id"].UD = 0
+		character_move["id"].LR = 1
+	elseif ar == "S" then
+		character_move["id"].UD = 1
+		character_move["id"].LR = 0
+	elseif ar == "NE" then
+		character_move["id"].UD = -1
+		character_move["id"].LR = 1
+	elseif ar == "SE" then
+		character_move["id"].UD = 1
+		character_move["id"].LR = 1
+	elseif ar == "NW" then
+		character_move["id"].UD = -1
+		character_move["id"].LR = -1
+	elseif ar == "SW" then
+		character_move["id"].UD = 1
+		character_move["id"].LR = -1
+	end
 end
 
---[[
-  data 형태
-  {
-    "uid":"mnLE33vu9FUsp8DUAAAD",
-    "arrow": "W"
-  }
-]]
 function eventArrowKeyUp(data)
-  print("eventArrowKeyUp")
+  local id = data.uid
+	if id == "6riLhW7R-9q3rF9RAAAG" then
+		local ar = data.arrow
+
+		character_move["id"].UD = 0
+		character_move["id"].LR = 0
+	end
 end
 
 --[[
@@ -103,13 +147,6 @@ function eventRotationKeyDown(data)
   print("eventRotationKeyDown")
 end
 
---[[
-  data 형태
-  {
-    "uid":"mnLE33vu9FUsp8DUAAAD",
-    "angle": "210"
-  }
-]]
 function eventRotationKeyUp(data)
   print("eventRotationKeyUp")
 end
@@ -125,8 +162,13 @@ end
     ]
   }
 ]]
+
 function eventGameStart(data)
-  print("eventGameStart")
+	while true do
+		table.insert( character_id , data.userlist.uid )
+		character_move.id["UD"], character_move.id["LR"] = 0, 0
+		makeCharacter(id)
+	end
 end
 
 function sendSoundEffect(uid, file)
@@ -141,195 +183,219 @@ function sendGameEnd()
   print("sendGameEnd")
 end
 
+
+
+-- -----------------------------------------------------------------------------------------------------------------------------------
+-- inGame
+-- -----------------------------------------------------------------------------------------------------------------------------------
+
 function showUI()
   content[1] = display.newRect( 0, 0, _W, _H*0.8 )
   content[1].anchorX, content[1].anchorY = 0, 0
   content[1]:setFillColor( CC("555555") )
+
+	content[2] = display.newRect( 0, _H*0.8, _W, 30 )
+	content[2].anchorX = 0
+	content[2]:setFillColor( CC("ffff00") )
+
+	content[3] = display.newRect( 0, _H*0.8, _W, 30 )
+	content[3].anchorX = 0
+	content[3]:setFillColor( CC("ff0000") )
+
 end
 
-function makeCharacter(id)
-  local ud, lr = 0, 0
-  local bud, blr = 0, 0
-  local bx, by = 800, 800
-  -- local angle = 0
+function makeCharacter()
+	for i = 1, table.maxn(character_id), 1 do
+		local id = character_id[i]
+		character_image.id = display.newCircle( _W*0.5, _H*0.35, 30 )
+		character_image.id.anchorX, character_image.id.anchorY = 0, 0
+		character_image.id.name = "char"
 
-  -- character key event
-  function keyCharacter(e)
-    if e.phase == "down" then
-      --move
-      if e.keyName == "a" then
-        lr = lr - 1
-      elseif e.keyName == "d" then
-        lr = lr + 1
-      elseif e.keyName == "w" then
-        ud = ud - 1
-      elseif e.keyName == "s" then
-        ud = ud + 1
-      end
+		physics.addBody( character_image.id, "static", { radius = 30, filter = playerCollisionFilter } )
+		timer.performWithDelay( character_stat.id.ats, makeBullet, -1 )
+	end
+end
 
-      --bullet
-      if e.keyName == "left" then
-        blr = blr - 1
-      elseif e.keyName == "right" then
-        blr = blr + 1
-      elseif e.keyName == "up" then
-        bud = bud - 1
-      elseif e.keyName == "down" then
-        bud = bud + 1
-      end
 
-    elseif e.phase == "up" then
-      --move
-      if e.keyName == "a" then
-        lr = lr + 1
-      elseif e.keyName == "d" then
-        lr = lr - 1
-      elseif e.keyName == "w" then
-        ud = ud + 1
-      elseif e.keyName == "s" then
-        ud = ud - 1
-      end
-
-      --bullet
-      if e.keyName == "left" then
-        blr = blr + 1
-      elseif e.keyName == "right" then
-        blr = blr - 1
-      elseif e.keyName == "up" then
-        bud = bud + 1
-      elseif e.keyName == "down" then
-        bud = bud - 1
-      end
-    end
-  end
-
+--[[
   function onMouse(e)
-    bx = 800 * ( e.x - character_image["id"].x ) / ( math.sqrt( math.pow( e.x - character_image["id"].x , 2 ) + math.pow( e.y - character_image["id"].y, 2 ) ) )
-    by = 800 * ( e.y - character_image["id"].y ) / ( math.sqrt( math.pow( e.x - character_image["id"].x , 2 ) + math.pow( e.y - character_image["id"].y, 2 ) ) )
+    bx = 800 * ( e.x - character_image.id.x ) / ( math.sqrt( math.pow( e.x - character_image.id.x , 2 ) + math.pow( e.y - character_image["id"].y, 2 ) ) )
+    by = 800 * ( e.y - character_image.id.y ) / ( math.sqrt( math.pow( e.x - character_image.id.x , 2 ) + math.pow( e.y - character_image["id"].y, 2 ) ) )
 
     -- print("x : "..bx.."   y : "..by)
   end
+]]--
 
-  -- character enterframe event
-  function charEnterFrame(e)
-    function moveCharacter()
-      -- print("LR : "..lr.."   UD : "..ud)
+local user
+local monster
+local monsterMaxHP, monsterHP
 
-      character_image["id"].x = character_image["id"].x + lr*5
-      character_image["id"].y = character_image["id"].y + ud*5
-    end
+function makeMonster(type)
 
-    function trigBullet()
+	function monsterTimer(e)
+		function targetPoint(type)
+			if type == 1 then return _W*0.5, _H*0.5
+			else return character_image.character_id[type].x, character_image.character_id[type].y
+			end
+		end
 
-      if blr == -1 then
-        if bud == -1 then angle = 135
-        elseif bud == 0 then angle = 180
-        elseif bud == 1 then angle = 225
-        end
+		function monsterMoving()
+			local x, y = targetPoint(type)
+			--local x, y = user.x, user.y
+			monster["LR"] = monster.x - x > 0 and -1 or monster.x == x and 0 or 1
+			monster["UD"] = monster.y - y > 0 and -1 or monster.y == x and 0 or 1
 
-      elseif blr == 0 then
-        if bud == -1 then angle = 90
-        elseif bud == 1 then angle = 270
-        end
+			monster.x = monster.x + monster["LR"] * 1
+			monsterMaxHP.x = monsterMaxHP.x + monster["LR"] * 1
+			monsterHP.x = monsterHP.x + monster["LR"] * 1
+			monster.y = monster.y + monster["UD"] * 1
+			monsterMaxHP.y = monsterMaxHP.y + monster["UD"] * 1
+			monsterHP.y = monsterHP.y + monster["UD"] * 1
+		end
 
-      elseif blr == 1 then
-        if bud == -1 then angle = 45
-        elseif bud == 0 then angle = 0
-        elseif bud == 1 then angle = 315
-        end
-      end
-    end
+		local x = math.random( 0, 200 ) * math.pow( -1, math.random( 1, 2 ) )
+		monster = display.newCircle( x < 0 and x or _W + x , math.random(0, _H), 25 )
+		monster.x, monster.y = _W*0.5, _H*0.5
+		monster.name = "monster"
+		monster.hp = 30
+		monster.max = 30
+		monster:setFillColor(CC("111111"))
+		physics.addBody( monster, "static", { radius = 25, filter = enemyCollisionFilter } )
 
-    moveCharacter()
-    trigBullet()
-  end
-
-  function makeBullet(angle)
-    local bullet
-
-    function removeBullet()
-      if not physics.removeBody(bullet) then
-      end
-    end
-
-    function checkLocation(e)
-      if bullet.x + 10 < 0 then
-        timer.cancel( e.source )
-        removeBullet()
-        print(1)
-      elseif bullet.x - 10 > _W then
-        timer.cancel( e.source )
-        removeBullet()
-        print(2)
-      elseif bullet.y + 10 < 0 then
-        timer.cancel( e.source )
-        removeBullet()
-        print(3)
-      elseif bullet.y - 10 > _H then
-        timer.cancel( e.source )
-        removeBullet()
-        print(4)
-      end
-    end
-    bullet = display.newCircle( character_image["id"].x + character_image["id"].contentWidth * 0.5 ,    character_image["id"].y + character_image["id"].contentHeight * 0.5, 10 )
-    physics.addBody( bullet, "dynamic", { radius = 10, filter = playerBulletCollisionFilter } )
-
-    bullet.isBullet = true
-
-    --[[
-    bullet.xVelocity = (blr == -1) and -800 or ( blr == 0 ) and 0 or 800
-    bullet.yVelocity = (bud == -1 ) and -800 or ( bud == 0 ) and 0 or 800
-
-    if bullet.xVelocity ~= 0 or bullet.yVelocity ~= 0 then
-      bx = bullet.xVelocity
-      by = bullet.yVelocity
-    end
-    ]]--
-
-    bullet:setLinearVelocity( bx, by )
-
-    --Runtime:addEventListener( "enterFrame", checkLocation )
-    --timer.performWithDelay( 50, checkLocation, -1 )
-  end
-
-
-  character_stat["id"] =
-  {
-    ["cla"] = 1, -- character class
-    ["atk"] = 10, -- character attack
-    ["def"] = 10, -- character defend
-    ["spd"] = 10, --character moving speed
-    ["ats"] = 500, --attack speed ( in 1s )
-  }
-
-  character_image["id"] = display.newCircle( _W*0.5, _H*0.35, 30 )
-  character_image["id"].anchorX, character_image["id"].anchorY = 0, 0
-
-  physics.addBody( character_image["id"], "dynamic", { radius = 30, filter = playerCollisionFilter } )
-
-  Runtime:addEventListener( "key", keyCharacter )
-  Runtime:addEventListener( "enterFrame", charEnterFrame )
-  Runtime:addEventListener( "mouse", onMouse )
-  timer.performWithDelay( character_stat["id"]["ats"] , makeBullet, -1 )
-end
-
-function makeMonster()
-	function moveMonster()
-
+		monsterMaxHP = display.newRect( monster.x, monster.y - 45, 70, 10 )
+		monsterHP = display.newRect( monster.x - 35, monster.y - 45, 70, 10 )
+		monsterHP.anchorX = 0
+		monsterHP:setFillColor( CC("FF0000") )
+		Runtime:addEventListener("enterFrame", monsterMoving )
 	end
-	local monster = display.newCircle( _W*1.2, _H*0.4, 25 )
-	monster:setFillColor(CC("888888"))
+
+	timer.performWithDelay( math.random( 0, 500 ) + 750, monsterTimer, 1 )
 end
+
+function exampleUser()
+	function moveUser(e)
+		user.x, user.y = e.x, e.y
+	end
+	function shooting(e)
+		local bullet = {}
+		local max = 24
+		for i = 1, max, 1 do
+			bullet[i] = display.newCircle( user.x, user.y, 10 )
+			physics.addBody( bullet[i], "dynamic", { radius = 10, filter = playerBulletCollisionFilter } )
+
+			bullet[i].isBullet = true
+
+			bx, by = 800 * math.cos(360*i/max), 800 * math.sin(360*i/max)
+			-- print("bx : ".. bx.. "   by : "..by)
+
+			bullet[i]:setLinearVelocity( bx, by )
+			bullet[i].name = "bullet"
+		end
+	end
+	user = display.newCircle( _W*0.5, _H*0.5, 30 )
+	user:setFillColor(CC("777777"))
+	user.name = "user"
+	physcis.addBody( user, "dynamic", { radius = 30, filter = playerCollisionFilter } )
+	Runtime:addEventListener("mouse", moveUser)
+	Runtime:addEventListener("tap",shooting)
+end
+
+-- collision
+function onGlobalCollision( e )
+	function fadeout()
+		monster:removeSelf()
+		monsterHP:removeSelf()
+		monsterMaxHP:removeSelf()
+		Runtime:removeEventListener("enterFrame", monsterMoving )
+	end
+	print( "e.obj1 : " .. e.object1.name .. "   e.obj2 : " .. e.object2.name )
+	if e.object1.name == "monster" and e.object2.name == "bullet" then
+		e.object2:removeSelf()
+		monsterHP:scale( monsterMaxHP.contentWidth / monsterHP.contentWidth , 1 )
+		monster.hp = monster.hp - 1
+		monsterHP:scale( monster.hp / monster.max, 1 )
+		print( "monster hp : " .. monster.hp .. "   contentWidth : " .. monsterHP.contentWidth, 1 )
+		if monster.hp == 0 then
+			transition.to( monsterHP, { alpha = 0, time = 500 } )
+			transition.to( monsterMaxHP, { alpha = 0, time = 500 } )
+			transition.to( monster, { alpha = 0, time = 500, onComplete = fadeout } )
+		end
+	elseif e.object1.name == "user" and e.object2.name == "monster" then
+		content[3]:scale( content[2].contentWidth / content[3].contentWidth , 1 )
+		maxHP = maxHP - 1
+		content[3]:scale( maxHP / 100, 1 )
+
+		print(maxHP)
+
+		if maxHP == 0 then
+			Runtime:removeEventListener("collision", onGlobalCollision )
+			Runtime:removeEventListener("enterFrames", enterFrameEvent )
+		end
+	end
+end
+
+Runtime:addEventListener( "collision", onGlobalCollision )
+
+
+--[[
+-- precollision
+function onGlobalPreCollision( e )
+	print("e.obj1 : "..e.object1.name.."   e.obj2 : "..e.object2.name)
+	if e.object1.name == "monster" and e.object2.name == "bullet" then
+		e.object2:removeSelf()
+	end
+end
+
+Runtime:addEventListener( "preCollision", onGlobalPreCollision )
+]]--
+
+--[[
+-- postcollision
+function onGlobalPostCollision( e )
+	print("e.obj1 : " .. e.object1.name .. "   e.obj2 : " .. e.object2.name )
+
+	if e.object1.name == "monster" and e.object2.name == "bullet" then
+		e.object2:removeSelf()
+	end
+end
+
+Runtime:addEventListener("postCollision", onGlobalPostCollision)
+]]--
+-- -----------------------------------------------------------------------------------------------------------------------------------
+-- enterFrameEvent
+-- -----------------------------------------------------------------------------------------------------------------------------------
+
+function enterFrameEvent(e)
+	function moveCharacter()
+		for i = 1, table.maxn(character_id), 1 do
+			local id = character_id[i]
+			chracter_image.id.x = character_image.id.x + character_move.id["LR"] * character_stat.id["spd"]
+			charcter_image.id.y = character_image.id.y + character_move.id["UD"] * character_stat.id["spd"]
+		end
+	end
+	if isGameStart then
+		moveCharacter()
+	end
+end
+
+
+
+-- -----------------------------------------------------------------------------------------------------------------------------------
+-- scene
+-- -----------------------------------------------------------------------------------------------------------------------------------
 
 function scene:create(event)
 
   local sceneGroup = self.view
 
+
+	-- socket setting
 	ws = WebSockets{
 		uri='ws://192.168.21.190:1337'
 	}
 	ws:addEventListener( ws.EVENT, webSocketsEvent_handler )
 
+	-- physics setting
   physcis.start()
   physics.setGravity( 0, 0 )
   display.setDrawMode( "hybrid" )
@@ -343,7 +409,10 @@ function scene:show(event)
   if phase == "will" then
 
     showUI()
-    makeCharacter("aaaa")
+
+		Runtime:addEventListener( "enterFrame", enterFrameEvent )
+		exampleUser()
+		makeMonster(1)
 
   elseif phase == "did" then
 
