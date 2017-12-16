@@ -70,12 +70,6 @@ function webSocketsEvent_handler( event )
 	end
 end
 
-function sendData(str)
-	local encoded = json.encode( str )
-	print( "encoded : " .. encoded )
-
-	ws:send(encoded)
-
 --[[
   data 형태
   {
