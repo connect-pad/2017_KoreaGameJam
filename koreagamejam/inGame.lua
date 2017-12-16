@@ -132,6 +132,7 @@ function makeCharacter(id)
 
   function makeBullet(angle)
     local bullet
+
     function removeBullet()
       if not physics.removeBody(bullet) then
       end
@@ -174,7 +175,7 @@ function makeCharacter(id)
     bullet:setLinearVelocity( bx, by )
 
     --Runtime:addEventListener( "enterFrame", checkLocation )
-    timer.performWithDelay( 50, checkLocation, -1 )
+    --timer.performWithDelay( 50, checkLocation, -1 )
   end
 
 
